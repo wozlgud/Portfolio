@@ -1,88 +1,81 @@
-//program by Shubham Shinganapure on 3-10-2019
-//
-//for Gesture controled Robotic Car  
+// [HC06(slave Bluetooth) - UART - ATMEGA328p - L293D - DC모터] 제어
 
-int lm1=8; //left motor output 1
-int lm2=9; //left motor output 2
-int rm1=10;  //right motor output 1
-int rm2=11;  //right motor output 2
+#define F_CPU 16000000UL
+#include <avr/io.h>
+#include <stdio.h>
+#include <util/delay.h>
 
- char d=0;
 
-void setup()
+unsigned int UART_receive(void)
 {
-  pinMode(lm1,OUTPUT);
-  pinMode(lm2,OUTPUT);
-  pinMode(rm1,OUTPUT);
-  pinMode(rm2,OUTPUT);
-  Serial.begin(38400);
- sTOP();
-}
-void loop()
-{
-  if(Serial.available()>0)
-  {
-    d=Serial.read();
-  
-  if(d=='F')
-  {
-   ForWard();
-    }
-    if(d=='B')
-  {
-   BackWard();
-    }
-    
-  if(d=='L')
-  {
-   Left();
-    }
-  if(d=='R')
-  { 
-  Right();
-   }
-     if(d=='S')
-  {
-   sTOP();
-    }
+   while( !(UCSR0A & (1<<RXC0)) );   
+   return UDR0;
+} // UART 수신
+
+
+void UART_transmit(int data){
+   while( !(UCSR0A & (1<<UDRE0)) );
+   UDR0 = data;
+} // UART 송신
+
+int main(void){
+   int data;
+   DDRB = 0x03; // 포트 B : LED제어
+   DDRC = 0x0f; // 포트 C : L293D 제어
    
+   DDRD = 0x0f;  //포트 D : UART, Bluetooth 데이터 송수신
+   UCSR0B |= _BV(RXEN0); // RXEN0 : 수신허가
+   UCSR0B |= _BV(TXEN0); // TXEN0 : 송신허가
+   UCSR0C = 0b00000110; // 데이터 : 8비트, 비동기, 패리티: 없음, 정지비트 1비트
+   UBRR0H = 0;
+   UBRR0L = 103; //9600bps 속도
+   
+   while(1){
+      data = UART_receive();
+      //UART_transmit(data);  // 수신된 문자를 에코 백
+      
+      if(data=='5'){
+         PORTB = 0x00; // LED 끄기
+         
+         PORTC = 0x00; // 모터 가동 중지
+      } // 정지
+      if(data=='1'){
+         PORTB = 0x01; // LED 파랑
+         
+         PORTC |= 0x01;
+         PORTC &= ~0x02;
+         PORTC |= 0x04;
+         PORTC &= ~0x08; // 모터 전진 제어
+      } // 전진
+      
+      if(data=='2'){
+         PORTB = 0x02; // LED 노랑
+         
+         PORTC &= ~0x01;
+         PORTC |= 0x02;
+         PORTC &= ~0x04;
+         PORTC |= 0x08; // 모터 후진 제어
+      } // 후진
+      
+      if(data=='3'){
+         PORTB = 0x01; // LED 파랑
+         
+         PORTC &= ~0x01;
+         PORTC |= 0x02;
+         PORTC |= 0x04;
+         PORTC &= ~0x08; // 모터 좌회전 제어
+      } // 좌회전
+      
+      if(data=='4'){
+         PORTB = 0x01; // LED 파랑
+         
+         PORTC |= 0x01;
+         PORTC &= ~0x02;
+         PORTC &= ~0x04;
+         PORTC |= 0x08; // 모터 우회전 제어
+      } // 우회전
+      
+   }
+   
+   return 0;
 }
-  
-}
-
- void ForWard()
-  {
-   digitalWrite(lm1,HIGH);
-   digitalWrite(lm2,LOW);
-   digitalWrite(rm1,HIGH);
-   digitalWrite(rm2,LOW);
-  } 
-  void BackWard()
-  {
-   digitalWrite(lm1,LOW);
-   digitalWrite(lm2,HIGH);
-   digitalWrite(rm1,LOW);
-   digitalWrite(rm2,HIGH);
-  }
-  void Left()
-  {
-   digitalWrite(lm1,LOW);
-   digitalWrite(lm2,HIGH);
-   digitalWrite(rm1,HIGH);
-   digitalWrite(rm2,LOW);
-  } 
-  void Right()
-  {
-   digitalWrite(lm1,HIGH);
-   digitalWrite(lm2,LOW);
-   digitalWrite(rm1,LOW);
-   digitalWrite(rm2,HIGH);
-  }  
-
-    void sTOP()
-  {
-   digitalWrite(lm1,LOW);
-   digitalWrite(lm2,LOW);
-   digitalWrite(rm1,LOW);
-   digitalWrite(rm2,LOW);
-  }  
